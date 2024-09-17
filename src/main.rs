@@ -7,7 +7,7 @@ use std::{
 use image::Rgba;
 use std::fs::File;
 use std::io::Result as IoResult;
-use serde_json::Value;
+//use serde_json::Value;
 use std::path::Path;
 use uuid::Uuid;
 use serde::Deserialize;
@@ -40,7 +40,7 @@ fn main() -> IoResult<()> {
     
     let result = convert(&shapes_collection, "level.exolvl");
 
-    let file_path = Path::new("D:/level.exolvl");
+    let file_path = Path::new("G:/level.exolvl");
 
     // Handle the result
     match result {
@@ -86,6 +86,7 @@ fn read_level() -> Result<Exolvl, Box<dyn Error>> {
     Ok(Exolvl::read(&mut BufReader::new(&LEVELFILE[..]))?)
 }
 
+
 fn process_image(
     level: &mut Exolvl,
     shapes_collection: &Shapes,
@@ -100,43 +101,68 @@ fn process_image(
 
     for (entity_id, shape) in shapes_collection.shapes.iter().enumerate() {
         let entity_id = entity_id.try_into()?;
-        let tile_id: i32 = 113491821;
         let x_coordinate = shape.data.get(0).ok_or("Missing x-coordinate")? as &i32;
         let y_coordinate = shape.data.get(1).ok_or("Missing y-coordinate")? as &i32;
-        let x_coordinate2 = shape.data.get(2).ok_or("Missing x-scale")? as &i32;
-        let y_coordinate2 = shape.data.get(3).ok_or("Missing y-scale")? as &i32;
-
-
-
-        let scale = Vec2 {
+        let x_coordinate2 = shape.data.get(2).ok_or("Missing x_coordinate2")? as &i32;
+        let y_coordinate2 = shape.data.get(3).unwrap_or(&0) as &i32;
+        
+        let mut tile_id: i32 = 113491821;
+        let mut rotation: f32 = 0.0;
+        let mut circle: bool = false;
+        let mut scale = Vec2 {
             x: (*x_coordinate2 as f32 - *x_coordinate as f32).abs(),
             y: (*y_coordinate2 as f32 - *y_coordinate as f32).abs(),
         };
-
-        let position = Vec2 {
+        let mut position = Vec2 {
             x: (*x_coordinate as f32 + *x_coordinate2 as f32) / 2.0,
             y: (*y_coordinate as f32 + *y_coordinate2 as f32) / 2.0,
         };
-
         let color = shape.color.as_slice();
-
         if color.len() != 4 {
             return Err("Color array must have 4 elements".into());
         }
-
         let rgba_color = Rgba([
             color[0], // Red
             color[1], // Green
             color[2], // Blue
             color[3], // Alpha
         ]); 
+        let pixel: Rgba<u8> = rgba_color;
+
+        if shape.shape_type == 1 {
+        } 
+        else if shape.shape_type == 2 {
+            let rotation_object = shape.data.get(4).ok_or("Missing rotation")?;
+            rotation = *rotation_object as f32;
+        } 
+        else if shape.shape_type == 32 {
+            circle = true;
+            tile_id = -284493993;
+            position = Vec2 {
+                x: (*x_coordinate as f32),
+                y: (*y_coordinate as f32),
+            };
+            scale = Vec2 {
+                x: (*x_coordinate2 as f32) * 2.0,
+                y: (*x_coordinate2 as f32) * 2.0, 
+            };
+
+        }
+        
+        else {
+            println!("Unsupported shape {}", shape.shape_type);
+            continue;
+        }
+        
+
+        
+
+        
+
         
 
 
-        let pixel: Rgba<u8> = rgba_color;
-
-
-        let obj = get_object(entity_id, tile_id, position, scale, pixel);
+        let obj = get_object(entity_id, tile_id, position, scale, rotation, pixel, circle);
 
         level.level_data.objects.push(obj);
 
@@ -150,7 +176,20 @@ fn process_image(
 
 
 
-fn get_object(entity_id: i32, tile_id: i32, position: Vec2, scale: Vec2, pixel: (Rgba<u8>)) -> Object {
+fn get_object(entity_id: i32, tile_id: i32, position: Vec2, scale: Vec2, rotation: f32, pixel: Rgba<u8>, circle: bool) -> Object {
+    let mut properties = vec![
+        ObjectProperty::Colour(Colour {
+            r: pixel.0[0] as f32 / 255.,
+            g: pixel.0[1] as f32 / 255.,
+            b: pixel.0[2] as f32 / 255.,
+            a: pixel.0[3] as f32 / 255.,
+        }),
+    ];
+
+    if circle {
+        properties.push(ObjectProperty::Resolution(64));
+        properties.push(ObjectProperty::TotalAngle(360.0));
+    }
     Object {
         entity_id,
         tile_id,
@@ -158,19 +197,17 @@ fn get_object(entity_id: i32, tile_id: i32, position: Vec2, scale: Vec2, pixel: 
         prefab_id: 0,
         position,
         scale,
-        rotation: 0.0,
+        rotation,
         tag: String::new(),
-        properties: vec![ObjectProperty::Colour(Colour {
-            r: pixel.0[0] as f32 / 255.,
-            g: pixel.0[1] as f32 / 255.,
-            b: pixel.0[2] as f32 / 255.,
-            a: pixel.0[3] as f32 / 255.,
-        })],
+        properties,
         in_layer: 1,
         in_group: 0,
         group_members: vec![],
     }
 }
+
+
+
 
 fn set_theme(level: &mut Exolvl) {
     level.level_data.theme = "custom".to_string();
