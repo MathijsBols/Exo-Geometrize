@@ -40,7 +40,7 @@ fn main() -> IoResult<()> {
     
     let result = convert(&shapes_collection, "level.exolvl");
 
-    let file_path = Path::new("D:/level.exolvl");
+    let file_path = Path::new("G:/level.exolvl");
 
     // Handle the result
     match result {
@@ -176,7 +176,7 @@ fn process_image(
 
 
 
-fn get_object(entity_id: i32, tile_id: i32, position: Vec2, scale: Vec2, rotation: f32, pixel: (Rgba<u8>), circle: bool) -> Object {
+fn get_object(entity_id: i32, tile_id: i32, position: Vec2, scale: Vec2, rotation: f32, pixel: Rgba<u8>, circle: bool) -> Object {
     let mut properties = vec![
         ObjectProperty::Colour(Colour {
             r: pixel.0[0] as f32 / 255.,
@@ -188,7 +188,7 @@ fn get_object(entity_id: i32, tile_id: i32, position: Vec2, scale: Vec2, rotatio
 
     if circle {
         properties.push(ObjectProperty::Resolution(64));
-        properties.push(ObjectProperty::TotalAngle(360));
+        properties.push(ObjectProperty::TotalAngle(360.0));
     }
     Object {
         entity_id,
