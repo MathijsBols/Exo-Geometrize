@@ -14,7 +14,7 @@ use serde::Deserialize;
 const LEVELFILE: &[u8; 432] = include_bytes!("default.exolvl");
 
 #[derive(Debug, Deserialize)]
-struct Shape {
+pub struct Shape {
     #[serde(rename = "type")]
     shape_type: u8,
     data: Vec<i32>,
@@ -22,7 +22,7 @@ struct Shape {
 }
 
 #[derive(Debug, Deserialize)]
-struct Shapes {
+pub struct Shapes {
     shapes: Vec<Shape>,
 }
 
@@ -134,7 +134,32 @@ fn process_image(
         else if shape.shape_type == 2 {
             let rotation_object = shape.data.get(4).ok_or("Missing rotation")?;
             rotation = *rotation_object as f32;
-        } 
+        } else if shape.shape_type == 8 {
+            circle = true;
+            tile_id = -284493993;
+            position = Vec2 {
+                x: (*x_coordinate as f32),
+                y: (*y_coordinate as f32),
+            };
+            scale = Vec2 {
+                x: (*x_coordinate2 as f32) * 2.0,
+                y: (*y_coordinate2 as f32) * 2.0, 
+            };
+        } else if shape.shape_type == 16 {
+            circle = true;
+            tile_id = -284493993;
+            position = Vec2 {
+                x: (*x_coordinate as f32),
+                y: (*y_coordinate as f32),
+            };
+            scale = Vec2 {
+                x: (*x_coordinate2 as f32) * 2.0,
+                y: (*y_coordinate2 as f32) * 2.0, 
+            };
+            let rotation_object = shape.data.get(4).ok_or("Missing rotation")?;
+            rotation = *rotation_object as f32;
+        }
+
         else if shape.shape_type == 32 {
             circle = true;
             tile_id = -284493993;
