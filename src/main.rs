@@ -1,8 +1,7 @@
 use exolvl::{Colour, Exolvl, Object, ObjectProperty, Read as _, Vec2, Write as _};
 use flate2::{write::GzEncoder, Compression};
 use std::{
-    error::Error,
-    io::{BufReader, Write},
+    error::Error, io::{BufReader, Write}, path::PathBuf
 };
 use image::Rgba;
 use std::fs::File;
@@ -11,12 +10,15 @@ use std::io::Result as IoResult;
 use std::path::Path;
 use uuid::Uuid;
 use serde::Deserialize;
+use serde_json;
+use rfd::FileDialog;
+//use std::path::PathBuf;
 const LEVELFILE: &[u8; 432] = include_bytes!("default.exolvl");
 
 #[derive(Debug, Deserialize)]
 pub struct Shape {
     #[serde(rename = "type")]
-    shape_type: u8,
+    shape_type: u16,
     data: Vec<i32>,
     color: Vec<u8>,
 }
@@ -28,37 +30,61 @@ pub struct Shapes {
 
 
 
+
 fn main() -> IoResult<()> {
-
-    let file = File::open("test1.json")?;
-    let reader = BufReader::new(file);
-
-    // Deserialize JSON from the reader
-    let shapes_collection: Shapes = serde_json::from_reader(reader)?;
-
-
+    //file dialog window
+    let files = FileDialog::new()
+    .add_filter("text", &["Json file", "json"])
+    .set_directory("/")
+    .pick_file();
+    // initailizing varibles
+    let mut result: Result<Vec<u8>, _> = Ok(vec![1, 2, 3]);//random 
+    // converting
+    match files {
+        Some(path_buf) => {
+            let path: PathBuf = path_buf;
+            let path: &Path = path.as_path();  // Convert PathBuf to &Path
+            // open the file
+            let file = File::open(path)?;
+            // read the file
+            let reader = BufReader::new(file);
+            // import into shape_collection
+            let shapes_collection: Shapes = serde_json::from_reader(reader)?;
+            // convert
+            result = convert(&shapes_collection, "Converted level by Exo-Geometrize");
+            // set end file path
+        } 
+        None => println!("No file selected."),  // Handle if no file is selected
+    }
     
-    let result = convert(&shapes_collection, "level.exolvl");
 
-    let file_path = Path::new("G:/level.exolvl");
-
-    // Handle the result
+    // write data to final file
     match result {
         Ok(data) => {
-            // Write the binary data to a file
-            let mut file = File::create(&file_path)?;
-            file.write_all(&data)?;
-            println!("Conversion successful!");
+            // save file dialog
+            if let Some(file_path) = rfd::FileDialog::new()
+                .set_title("Save File")
+                .set_directory("/")
+                .set_file_name("converted_level.exolvl")
+                .save_file() 
+            {
+                // write data
+                let mut file = File::create(&file_path)?;
+                file.write_all(&data)?;
+                println!("Conversion successful!");
+                println!("Wrote file to: {}", file_path.display());
+            } else {
+                println!("Save file dialog was canceled.");
+            }
         }
         Err(error) => {
-            // Print the error message
             eprintln!("Conversion failed: {}", error);
         }
     }
 
     Ok(())
 }
-
+// send convert reqeust to: fn convert_inner
 pub fn convert(
     shapes_collection: &Shapes,
     level_name: &str,
@@ -66,19 +92,20 @@ pub fn convert(
     convert_inner(shapes_collection, level_name) 
         .map_err(|e| e.to_string())
 }
-
+// convert
 fn convert_inner(
     shapes_collection: &Shapes,
     level_name: &str,
 ) -> Result<Vec<u8>, Box<dyn Error>> {
+    // read the base level file
     let mut level = read_level()?;
-
+    // process the incoming data 
     process_image(&mut level, shapes_collection)?;
-
+    // set the level propeties
     update_level_properties(&mut level, level_name);
 
     set_theme(&mut level);
-
+    // write the final level
     write_level(&level)
 }
 
@@ -172,8 +199,7 @@ fn process_image(
                 y: (*x_coordinate2 as f32) * 2.0, 
             };
 
-        }
-        
+        } 
         else {
             println!("Unsupported shape {}", shape.shape_type);
             continue;
